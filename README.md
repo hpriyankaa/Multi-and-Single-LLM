@@ -120,21 +120,6 @@ Malformed or missing outputs are explicitly tracked as parse failures.
 
 ---
 
-## Evaluation Metrics
-
-The notebook computes multiple quantitative metrics **without rerunning the pipeline**, including:
-
-- JSON parse success rate (Single vs Multi)
-- Explanation length (word count)
-- Fix outline depth (number of steps)
-- Verification-oriented language usage
-- Model disagreement rate (Stage A)
-- Judge intervention rate (Stage C)
-- Model preference distribution (Qwen vs GPT-OSS vs Hybrid)
-
-These metrics allow direct statistical comparison between the single-LLM and multi-LLM approaches.
-
----
 
 ## Relationship to Prior Work
 
