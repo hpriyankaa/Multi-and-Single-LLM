@@ -1,18 +1,4 @@
-"""
-Error Type Extraction + Proof Artifacts (READY TO PASTE) — FINAL VERSION
 
-Fixes included:
-1) Grader assertion messages like "AssertionError in: assert ..." are NOT Python tracebacks.
-   They are labeled: AssertionFailure_Grader.
-2) Rows where error text literally says "Correct answer" are labeled: CorrectAnswerInErrorField.
-
-Outputs:
-- error_counts_clean.csv
-- audit_examples.jsonl (<= N examples per label)
-- manual_label_sample.csv (<= N examples per label)
-
-Streaming-friendly for huge JSONL files.
-"""
 
 import json
 import re
@@ -23,35 +9,25 @@ import random
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
-
-# ============================================================
-# 1) Whitelist of valid exceptions
-# ============================================================
 BUILTIN_EXCEPTIONS = {
     name for name, obj in vars(builtins).items()
     if isinstance(obj, type) and issubclass(obj, BaseException)
 }
 
-# Add only if you intentionally want extra non-builtin exceptions:
 EXTRA_EXCEPTIONS = set()
-# Example:
-# EXTRA_EXCEPTIONS = {"AxisError"}
+
 
 ALLOWED_EXCEPTIONS = BUILTIN_EXCEPTIONS | EXTRA_EXCEPTIONS
 
 
-# ============================================================
-# 2) Patterns (traceback-aware exception extraction)
-# ============================================================
+
 TB_RE = re.compile(r"Traceback \(most recent call last\):", re.IGNORECASE)
 COLON_EXC_RE = re.compile(r"\b([A-Z][A-Za-z0-9_]*(?:Error|Exception))\s*:", re.IGNORECASE)
 DASH_EXC_RE = re.compile(r"Error\s+Traceback\s*-\s*([A-Z][A-Za-z0-9_]*(?:Error|Exception))\b", re.IGNORECASE)
 EXC_NAME_RE = re.compile(r"\b([A-Z][A-Za-z0-9_]*(?:Error|Exception))\b")
 
 
-# ============================================================
-# 3) Non-exception classification patterns
-# ============================================================
+
 WRONG_ANSWER_PATTERNS = [
     r"\bincorrect\s+answer\b",
     r"\bwrong\s+answer\b",
@@ -84,9 +60,6 @@ RUNTIME_ERROR_GENERIC_PATTERNS = [
 ]
 
 
-# ============================================================
-# 4) Helpers
-# ============================================================
 def normalize_error_field(error_value: Any) -> List[Any]:
     """Normalize the 'error' field into a list, preserving dict structure."""
     if error_value is None:
@@ -100,14 +73,12 @@ def normalize_error_field(error_value: Any) -> List[Any]:
         if not s or s == "[]":
             return []
 
-        # Try JSON first
         try:
             parsed = json.loads(s)
             return parsed if isinstance(parsed, list) else [parsed]
         except Exception:
             pass
 
-        # Try Python literal
         try:
             parsed = ast.literal_eval(s)
             return parsed if isinstance(parsed, list) else [parsed]
@@ -161,11 +132,10 @@ def extract_exception_types(error_items: List[Any]) -> List[str]:
             has_tb = bool(TB_RE.search(t))
 
             candidates = []
-            # Strong evidence patterns (can exist even without full TB)
+         
             candidates.extend(DASH_EXC_RE.findall(t))
             candidates.extend(COLON_EXC_RE.findall(t))
 
-            # Only allow loose name matches if there's an actual Traceback header
             if has_tb and not candidates:
                 candidates.extend(EXC_NAME_RE.findall(t))
 
@@ -192,11 +162,10 @@ def classify_non_exception(error_items: List[Any]) -> str:
 
     low = combined.lower()
 
-    # FIX #1: "Correct answer" appearing in error field (data quirk)
     if re.search(r"\bcorrect\s+answer\b", low):
         return "CorrectAnswerInErrorField"
 
-    # FIX #2: grader-level assertion failures (not a Python traceback)
+
     if "assertionerror" in low and "assert" in low and not TB_RE.search(combined):
         return "AssertionFailure_Grader"
 
@@ -218,10 +187,6 @@ def classify_non_exception(error_items: List[Any]) -> str:
 
     return "OtherFailure"
 
-
-# ============================================================
-# 5) Proof artifacts (audit + manual labeling sample)
-# ============================================================
 def make_audit_record(obj: Dict[str, Any], label: str, evidence_texts: List[str], max_chars: int = 800) -> Dict[str, Any]:
     raw_err = obj.get("error")
     preview = str(raw_err)
@@ -252,7 +217,7 @@ def write_manual_label_sample_csv(audit_examples: Dict[str, List[Dict[str, Any]]
                 "question_id": r["question_id"],
                 "evidence_text": " | ".join(r["evidence_texts"]),
                 "error_preview": r["error_preview"],
-                "label_human": ""  # fill manually later
+                "label_human": ""  
             })
 
     with open(out_csv, "w", newline="", encoding="utf-8") as f:
@@ -261,9 +226,7 @@ def write_manual_label_sample_csv(audit_examples: Dict[str, List[Dict[str, Any]]
         w.writerows(rows)
 
 
-# ============================================================
-# 6) Reporting
-# ============================================================
+
 def write_counts_csv(counts: Counter, out_csv: str) -> None:
     with open(out_csv, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -296,9 +259,7 @@ def print_report(counts: Counter, stats: Dict[str, int]) -> None:
         print(f"  {et:30s} : {c:10,} ({pct:6.2f}%)")
 
 
-# ============================================================
-# 7) Main pipeline
-# ============================================================
+
 def run_pipeline(
     input_file: str,
     counts_csv: str = "error_counts_clean.csv",
@@ -380,7 +341,6 @@ def run_pipeline(
                 counts[label] += 1
                 maybe_add_audit(obj, label, evidence)
 
-    # ---------------- sanity checks (SAFE; does not affect counts) ----------------
     accounted = (
         stats["json_parse_errors"]
         + stats["missing_error_field"]
@@ -412,11 +372,9 @@ def run_pipeline(
     return {"counts": counts, "stats": stats, "audit_examples": audit_examples}
 
 
-# ============================================================
-# 8) Run (EDIT PATH ONLY IF NEEDED)
-# ============================================================
+
 if __name__ == "__main__":
-    INPUT_FILE = "answers.jsonl"  # change only if your file path/name differs
+    INPUT_FILE = "answers.jsonl"  
     run_pipeline(
         input_file=INPUT_FILE,
         counts_csv="error_counts_clean.csv",
